@@ -369,42 +369,33 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
 
         diam = self.expected_diameter.value if self.expected_diameter.value > 0 else None
 
-        try: 
-            y_data, flows, *_ = model.eval(
-                x_data,
-                channels=channels,
-                diameter=diam,
-                net_avg=self.use_averaging.value,
-                do_3D=self.do_3D.value,
-                anisotropy=self.anisotropy.value,
-                flow_threshold=self.flow_threshold.value,
-                cellprob_threshold=self.cellprob_threshold.value,
-                stitch_threshold=self.stitch_threshold.value,
-                min_size=self.min_size.value,
-                invert=self.invert.value,
-            )
-        except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
-            y_data, flows, *_ = model.eval(
-                x_data,
-                channels=channels,
-                diameter=diam,
-                net_avg=self.use_averaging.value,
-                do_3D=self.do_3D.value,
-                anisotropy=self.anisotropy.value,
-                flow_threshold=self.flow_threshold.value,
-                cellprob_threshold=self.cellprob_threshold.value,
-                stitch_threshold=self.stitch_threshold.value,
-                min_size=self.min_size.value,
-                omni=self.omni.value,
-                invert=self.invert.value,
-            )
-        finally:
-            if self.use_gpu.value and model.torch:
+        tryAgain = True
+        while True:
+            try: 
+                y_data, flows, *_ = model.eval(
+                    x_data,
+                    channels=channels,
+                    diameter=diam,
+                    net_avg=self.use_averaging.value,
+                    do_3D=self.do_3D.value,
+                    anisotropy=self.anisotropy.value,
+                    flow_threshold=self.flow_threshold.value,
+                    cellprob_threshold=self.cellprob_threshold.value,
+                    stitch_threshold=self.stitch_threshold.value,
+                    min_size=self.min_size.value,
+                    invert=self.invert.value,
+                )
+            except Exception:
+                if tryAgain:
+                    continue
+            else: break
+            finally:
+                if self.use_gpu.value and model.torch:
                 # Try to clear some GPU memory for other worker processes.
-                try:
-                    cuda.empty_cache()
-                except Exception as e:
-                    print(f"Unable to clear GPU memory. You may need to restart CellProfiler to change models. {e}")
+                    try:
+                        cuda.empty_cache(),
+                    except Exception as e:
+                        print(f"Unable to clear GPU memory. You may need to restart CellProfiler to change models. {e}")
 
         y = Objects()
         y.segmented = y_data
