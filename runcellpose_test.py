@@ -12,6 +12,8 @@ from cellprofiler_core.setting.choice import Choice
 from cellprofiler_core.setting.do_something import DoSomething
 from cellprofiler_core.setting.subscriber import ImageSubscriber
 from cellprofiler_core.setting.text import Integer, ImageName, Directory, Filename, Float
+from random import randint
+from time import sleep
 
 CUDA_LINK = "https://pytorch.org/get-started/locally/"
 Cellpose_link = " https://doi.org/10.1038/s41592-020-01018-x"
@@ -408,7 +410,7 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
                 # Try to clear some GPU memory for other worker processes.
                     try:
                         cuda.empty_cache(),
-                        wait(randint(30,180)),
+                        sleep(randint(30,180)),
                     except Exception as e:
                         print(f"Unable to clear GPU memory. You may need to restart CellProfiler to change models. {e}")
 
