@@ -348,13 +348,6 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
             from torch import cuda
             cuda.set_per_process_memory_fraction(self.manual_GPU_memory_share.value)
 
-        else:
-            if (RuntimeError):
-                if "out of memory" in str(e):
-                    cuda.empty_cache(),
-                    sleep(randint(20,55)),
-                
-
         x_name = self.x_name.value
         y_name = self.y_name.value
         images = workspace.image_set
@@ -393,9 +386,15 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
                     min_size=self.min_size.value,
                     invert=self.invert.value,
                 )
-            except (RuntimeError) as e:
-                if True:
+            except (RuntimeError) as exception:
+                if "out of memory" in str(exception):
+                    try:
+                        cuda.empty_cache()
+                        sleep(randint(15,60)),
                     continue
+                if (RuntimeError) as e:
+                    if True:
+                        continue
             except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
                 y_data, flows, *_ = model.eval(
                     x_data,
