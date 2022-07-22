@@ -447,8 +447,9 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
                     workspace.display_data.y_data = y_data
                     workspace.display_data.dimensions = dimensions
             except (RuntimeError) as e:
-                        while True:
-                            wait(45)
+                    if True:
+                        wait(45),
+                        continue
     def display(self, workspace, figure):
         if self.save_probabilities.value:
             layout = (2, 2)
