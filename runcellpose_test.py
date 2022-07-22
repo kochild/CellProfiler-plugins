@@ -372,13 +372,6 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
         diam = self.expected_diameter.value if self.expected_diameter.value > 0 else None
 
         while True:
-            if self.use_gpu.value and model.torch:
-                # Try to clear some GPU memory for other worker processes.
-                    try:
-                        cuda.empty_cache(),
-                        sleep(randint(30,180)),
-                    except Exception as e:
-                        continue
             try:
                 y_data, flows, *_ = model.eval(
                     x_data,
@@ -396,6 +389,13 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
             except (RuntimeError) as e:
                 if True:
                     continue
+                
+            except Exception as e:
+                if "out of memory" in str(e):
+                    cuda.empty_cache(),
+                    sleep(randint(20,60)),
+                    continue
+
             except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
                 y_data, flows, *_ = model.eval(
                     x_data,
