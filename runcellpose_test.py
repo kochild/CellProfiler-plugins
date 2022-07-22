@@ -1,5 +1,3 @@
-from multiprocessing.connection import wait
-from time import sleep
 import numpy
 import os
 from cellpose import models, io, core
@@ -343,113 +341,103 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
             model_directory = self.model_directory.get_absolute_path()
             model_path = os.path.join(model_directory, model_file)
             model = models.CellposeModel(pretrained_model=model_path, gpu=self.use_gpu.value)
+
+        if self.use_gpu.value and model.torch:
+            from torch import cuda
+            cuda.set_per_process_memory_fraction(self.manual_GPU_memory_share.value)
+
+        x_name = self.x_name.value
+        y_name = self.y_name.value
+        images = workspace.image_set
+        x = images.get_image(x_name)
+        dimensions = x.dimensions
+        x_data = x.pixel_data
+
+        if x.multichannel:
+            raise ValueError("Color images are not currently supported. Please provide greyscale images.")
+
+        if self.mode.value != "nuclei" and self.supply_nuclei.value:
+            nuc_image = images.get_image(self.nuclei_image.value)
+            # CellPose expects RGB, we'll have a blank red channel, cells in green and nuclei in blue.
+            if self.do_3D.value:
+                x_data = numpy.stack((numpy.zeros_like(x_data), x_data, nuc_image.pixel_data), axis=1)
+            else:
+                x_data = numpy.stack((numpy.zeros_like(x_data), x_data, nuc_image.pixel_data), axis=-1)
+            channels = [2, 3]
+        else:
+            channels = [0, 0]
+
+        diam = self.expected_diameter.value if self.expected_diameter.value > 0 else None
+
         while True:
             try:
-                if self.use_gpu.value and model.torch:
-                    from torch import cuda
-                    cuda.set_per_process_memory_fraction(self.manual_GPU_memory_share.value) 
-
-                x_name = self.x_name.value
-                y_name = self.y_name.value
-                images = workspace.image_set
-                x = images.get_image(x_name)
-                dimensions = x.dimensions
-                x_data = x.pixel_data
-
-                if x.multichannel:
-                    raise ValueError("Color images are not currently supported. Please provide greyscale images.")
-
-                if self.mode.value != "nuclei" and self.supply_nuclei.value:
-                    nuc_image = images.get_image(self.nuclei_image.value)
-                    # CellPose expects RGB, we'll have a blank red channel, cells in green and nuclei in blue.
-                    if self.do_3D.value:
-                        x_data = numpy.stack((numpy.zeros_like(x_data), x_data, nuc_image.pixel_data), axis=1)
-                    else:
-                        x_data = numpy.stack((numpy.zeros_like(x_data), x_data, nuc_image.pixel_data), axis=-1)
-                    channels = [2, 3]
-                else:
-                    channels = [0, 0]
-
-                diam = self.expected_diameter.value if self.expected_diameter.value > 0 else None
-
-                while True:
-                    try:
-                        y_data, flows, *_ = model.eval(
-                            x_data,
-                            channels=channels,
-                            diameter=diam,
-                            net_avg=self.use_averaging.value,
-                            do_3D=self.do_3D.value,
-                            anisotropy=self.anisotropy.value,
-                            flow_threshold=self.flow_threshold.value,
-                            cellprob_threshold=self.cellprob_threshold.value,
-                            stitch_threshold=self.stitch_threshold.value,
-                            min_size=self.min_size.value,
-                            invert=self.invert.value,
-                        )
-                    except (RuntimeError) as e:
-                        if True:
-                            continue
-                    except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
-                        y_data, flows, *_ = model.eval(
-                            x_data,
-                            channels=channels,
-                            diameter=diam,
-                            net_avg=self.use_averaging.value,
-                            do_3D=self.do_3D.value,
-                            anisotropy=self.anisotropy.value,
-                            flow_threshold=self.flow_threshold.value,
-                            cellprob_threshold=self.cellprob_threshold.value,
-                            stitch_threshold=self.stitch_threshold.value,
-                            min_size=self.min_size.value,
-                            omni=self.omni.value,
-                            invert=self.invert.value,
-                            )    
-                    else: break
-                    finally:
-                        if self.use_gpu.value and model.torch:
-                        # Try to clear some GPU memory for other worker processes.
-                            try:
-                                cuda.empty_cache(),
-                            except Exception as e:
-                                print(f"Unable to clear GPU memory. You may need to restart CellProfiler to change models. {e}")
-
-                y = Objects()
-                y.segmented = y_data
-                y.parent_image = x.parent_image
-                objects = workspace.object_set
-                objects.add_objects(y, y_name)
-
-                if self.save_probabilities.value:
-                    # Flows come out sized relative to CellPose's inbuilt model size.
-                    # We need to slightly resize to match the original image.
-                    size_corrected = resize(flows[2], y_data.shape)
-                    prob_image = Image(
-                        size_corrected,
-                        parent_image=x.parent_image,
-                        convert=False,
-                        dimensions=len(size_corrected.shape),
-                    )
-
-                    workspace.image_set.add(self.probabilities_name.value, prob_image)
-
-                    if self.show_window:
-                        workspace.display_data.probabilities = size_corrected
-
-                self.add_measurements(workspace)
-
-                if self.show_window:
-                    if x.volumetric:
-                        # Can't show CellPose-accepted colour images in 3D
-                        workspace.display_data.x_data = x.pixel_data
-                    else:
-                        workspace.display_data.x_data = x_data
-                    workspace.display_data.y_data = y_data
-                    workspace.display_data.dimensions = dimensions
+                y_data, flows, *_ = model.eval(
+                    x_data,
+                    channels=channels,
+                    diameter=diam,
+                    net_avg=self.use_averaging.value,
+                    do_3D=self.do_3D.value,
+                    anisotropy=self.anisotropy.value,
+                    flow_threshold=self.flow_threshold.value,
+                    cellprob_threshold=self.cellprob_threshold.value,
+                    stitch_threshold=self.stitch_threshold.value,
+                    min_size=self.min_size.value,
+                    invert=self.invert.value,
+                )
             except (RuntimeError) as e:
-                    if True:
-                        wait(45),
-                        continue
+                if True:
+                    continue
+            except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
+                y_data, flows, *_ = model.eval(
+                    x_data,
+                    channels=channels,
+                    diameter=diam,
+                    net_avg=self.use_averaging.value,
+                    do_3D=self.do_3D.value,
+                    anisotropy=self.anisotropy.value,
+                    flow_threshold=self.flow_threshold.value,
+                    cellprob_threshold=self.cellprob_threshold.value,
+                    stitch_threshold=self.stitch_threshold.value,
+                    min_size=self.min_size.value,
+                    omni=self.omni.value,
+                    invert=self.invert.value,
+                    )    
+            else: break
+
+
+        y = Objects()
+        y.segmented = y_data
+        y.parent_image = x.parent_image
+        objects = workspace.object_set
+        objects.add_objects(y, y_name)
+
+        if self.save_probabilities.value:
+            # Flows come out sized relative to CellPose's inbuilt model size.
+            # We need to slightly resize to match the original image.
+            size_corrected = resize(flows[2], y_data.shape)
+            prob_image = Image(
+                size_corrected,
+                parent_image=x.parent_image,
+                convert=False,
+                dimensions=len(size_corrected.shape),
+            )
+
+            workspace.image_set.add(self.probabilities_name.value, prob_image)
+
+            if self.show_window:
+                workspace.display_data.probabilities = size_corrected
+
+        self.add_measurements(workspace)
+
+        if self.show_window:
+            if x.volumetric:
+                # Can't show CellPose-accepted colour images in 3D
+                workspace.display_data.x_data = x.pixel_data
+            else:
+                workspace.display_data.x_data = x_data
+            workspace.display_data.y_data = y_data
+            workspace.display_data.dimensions = dimensions
+
     def display(self, workspace, figure):
         if self.save_probabilities.value:
             layout = (2, 2)
