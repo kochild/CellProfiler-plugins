@@ -393,7 +393,9 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
                     min_size=self.min_size.value,
                     invert=self.invert.value,
                 )
-            
+            except (RuntimeError) as e:
+                if True:
+                    continue
             except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
                 y_data, flows, *_ = model.eval(
                     x_data,
