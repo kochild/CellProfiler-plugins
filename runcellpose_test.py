@@ -372,6 +372,13 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
         diam = self.expected_diameter.value if self.expected_diameter.value > 0 else None
 
         while True:
+            if self.use_gpu.value and model.torch:
+                # Try to clear some GPU memory for other worker processes.
+                    try:
+                        cuda.empty_cache(),
+                        sleep(randint(30,180)),
+                    except Exception as e:
+                        continue
             try:
                 y_data, flows, *_ = model.eval(
                     x_data,
@@ -405,14 +412,7 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
                     invert=self.invert.value,
                     )    
             else: break
-            finally:
-                if self.use_gpu.value and model.torch:
-                # Try to clear some GPU memory for other worker processes.
-                    try:
-                        cuda.empty_cache(),
-                        sleep(randint(30,180)),
-                    except Exception as e:
-                        print(f"Unable to clear GPU memory. You may need to restart CellProfiler to change models. {e}")
+
 
         y = Objects()
         y.segmented = y_data
