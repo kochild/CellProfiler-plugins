@@ -392,9 +392,7 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
                         cuda.empty_cache()
                         sleep(randint(15,60)),
                     continue
-                if (RuntimeError) as e:
-                    if True:
-                        continue
+
             except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
                 y_data, flows, *_ = model.eval(
                     x_data,
