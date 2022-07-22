@@ -391,23 +391,24 @@ Volumetric stacks do not always have the same sampling in XY as they do in Z. Yo
                     try:
                         cuda.empty_cache(),
                         sleep(randint(15,60))
+                        except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
+                        y_data, flows, *_ = model.eval(
+                            x_data,
+                            channels=channels,
+                            diameter=diam,
+                            net_avg=self.use_averaging.value,
+                            do_3D=self.do_3D.value,
+                            anisotropy=self.anisotropy.value,
+                            flow_threshold=self.flow_threshold.value,
+                            cellprob_threshold=self.cellprob_threshold.value,
+                            stitch_threshold=self.stitch_threshold.value,
+                            min_size=self.min_size.value,
+                            omni=self.omni.value,
+                            invert=self.invert.value,
+                            )    
                 else:
                     continue
-            except float(cellpose_ver[0:3]) >= 0.7 and int(cellpose_ver[0])<2:
-                y_data, flows, *_ = model.eval(
-                    x_data,
-                    channels=channels,
-                    diameter=diam,
-                    net_avg=self.use_averaging.value,
-                    do_3D=self.do_3D.value,
-                    anisotropy=self.anisotropy.value,
-                    flow_threshold=self.flow_threshold.value,
-                    cellprob_threshold=self.cellprob_threshold.value,
-                    stitch_threshold=self.stitch_threshold.value,
-                    min_size=self.min_size.value,
-                    omni=self.omni.value,
-                    invert=self.invert.value,
-                    )    
+            
             else: break
 
 
